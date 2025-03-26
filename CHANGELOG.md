@@ -1,3 +1,9 @@
+# Changelog
+
 ## 0.0.1
 
-* TODO: Describe initial release.
+* Initial release
+* Support for connecting to XPrinter thermal printers via Bluetooth
+* API for printing bitmap images
+* Support for handling printer states and events
+* Permission handling for Android
