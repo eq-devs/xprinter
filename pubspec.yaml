@@ -24,4 +24,4 @@ flutter:
     platforms:
       android:
         package: com.eq.xprinter
-        pluginClass: XprinterPlugin
+        pluginClass: XPrinterFlutterPlugin
