@@ -7,3 +7,7 @@
 * API for printing bitmap images
 * Support for handling printer states and events
 * Permission handling for Android
+
+## 0.0.2
+
+* Rename plugin class from XprinterPlugin to XPrinterFlutterPlugin in pubspec.yaml
