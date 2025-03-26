@@ -19,6 +19,7 @@ class XPrinterFlutterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private var activity: Activity? = null
   private var printer: XPrinter? = null
 
+
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "com.eq.xprinter")
     channel.setMethodCallHandler(this)
