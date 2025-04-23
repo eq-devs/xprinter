@@ -122,7 +122,7 @@ class XPrinter private constructor(private val context: Context) {
      */
     fun initialize(): Boolean {
 
-        printer.cls()
+        printer?.cls()
         return try {
             POSConnect.init(context)
             true
