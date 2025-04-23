@@ -15,8 +15,11 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import net.posprinter.IDeviceConnection
 import net.posprinter.POSConnect
 import net.posprinter.TSPLConst
@@ -24,17 +27,21 @@ import net.posprinter.TSPLPrinter
 import net.posprinter.model.AlgorithmType
 import java.io.File
 import java.lang.ref.WeakReference
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 
 /**
  * XPrinter - A streamlined wrapper for Bluetooth TSPL printer operations
- * Optimized for Flutter integration
+ * Optimized for Flutter integration with non-blocking operations
  */
 class XPrinter private constructor(private val context: Context) {
 
     companion object {
         private const val TAG = "XPrinter"
         private const val BLUETOOTH_PERMISSIONS_REQUEST = 2001
+        private const val CONNECTION_TIMEOUT = 10000L // 10 seconds timeout
 
         @Volatile
         private var weakInstance: WeakReference<XPrinter>? = null
@@ -45,7 +52,6 @@ class XPrinter private constructor(private val context: Context) {
                 Manifest.permission.BLUETOOTH_SCAN
             )
         } else {
-
             arrayOf(
                 Manifest.permission.BLUETOOTH,
                 Manifest.permission.BLUETOOTH_ADMIN,
@@ -75,13 +81,14 @@ class XPrinter private constructor(private val context: Context) {
     private var connectionListener: PrinterConnectionListener? = null
     private var printerState = PrinterState.DISCONNECTED
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private var currentConnectionJob: Job? = null
+    private var reconnectAttemptsLeft = 0
+    private val maxReconnectAttempts = 3
 
     /**
      * Enum representing different printer states
      */
     enum class PrinterState {
-
-
         DISCONNECTED, CONNECTING, CONNECTED, PRINTING, ERROR
     }
 
@@ -103,8 +110,6 @@ class XPrinter private constructor(private val context: Context) {
      * Callback for printer operation results
      */
     interface PrinterCallback {
-
-
         fun onSuccess()
         fun onError(errorMessage: String)
     }
@@ -121,7 +126,6 @@ class XPrinter private constructor(private val context: Context) {
      * @return true if initialization was successful
      */
     fun initialize(): Boolean {
-
         printer?.cls()
         return try {
             POSConnect.init(context)
@@ -232,11 +236,51 @@ class XPrinter private constructor(private val context: Context) {
     }
 
     /**
+     * Connect to printer asynchronously using coroutines
+     */
+    private suspend fun connectAsync(macAddress: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            suspendCoroutine { continuation ->
+                try {
+                    // Create Bluetooth device connection
+                    deviceConnection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_BLUETOOTH)
+
+                    deviceConnection?.connect(macAddress) { code, _, msg ->
+                        when (code) {
+                            POSConnect.CONNECT_SUCCESS -> {
+                                // Create printer instance
+                                printer = TSPLPrinter(deviceConnection!!)
+                                lastConnectedMacAddress = macAddress
+                                updateState(PrinterState.CONNECTED)
+                                continuation.resume(true)
+                            }
+                            else -> {
+                                deviceConnection = null
+                                updateState(PrinterState.ERROR, "Connection failed: $msg")
+                                continuation.resume(false)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    continuation.resumeWithException(e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in connectAsync: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
      * Connect to a specific printer by MAC address
+     * Non-blocking implementation using coroutines
      * @param macAddress The MAC address of the printer
      * @param callback Callback to be invoked when connection completes
      */
     fun connectToPrinter(macAddress: String, callback: PrinterCallback? = null) {
+        // Cancel any ongoing connection attempts
+        currentConnectionJob?.cancel()
+
         // Explicitly check permissions before proceeding
         if (!hasBluetoothPermissions()) {
             updateState(PrinterState.ERROR, "Bluetooth permissions not granted")
@@ -262,23 +306,22 @@ class XPrinter private constructor(private val context: Context) {
             // Close previous connection if exists
             close()
 
-            // Create Bluetooth device connection
-            deviceConnection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_BLUETOOTH)
-            deviceConnection?.connectSync(macAddress) { code, _, msg ->
-                when (code) {
-                    POSConnect.CONNECT_SUCCESS -> {
-                        // Create printer instance
-                        printer = TSPLPrinter(deviceConnection!!)
-                        lastConnectedMacAddress = macAddress
-                        updateState(PrinterState.CONNECTED)
-                        callback?.onSuccess()
+            // Start a new connection attempt with timeout
+            currentConnectionJob = coroutineScope.launch {
+                try {
+                    val result = withTimeout(CONNECTION_TIMEOUT) {
+                        connectAsync(macAddress)
                     }
 
-                    else -> {
-                        deviceConnection = null
-                        updateState(PrinterState.ERROR, "Connection failed: $msg")
-                        callback?.onError("Failed to connect: $msg")
+                    if (result) {
+                        callback?.onSuccess()
+                    } else {
+                        callback?.onError("Failed to connect to printer")
                     }
+                } catch (e: Exception) {
+                    deviceConnection = null
+                    updateState(PrinterState.ERROR, "Connection error: ${e.message}")
+                    callback?.onError("Connection error: ${e.message}")
                 }
             }
         } catch (e: SecurityException) {
@@ -299,12 +342,39 @@ class XPrinter private constructor(private val context: Context) {
      */
     fun reconnectLastPrinter(callback: PrinterCallback? = null): Boolean {
         val targetMac = lastConnectedMacAddress ?: return false
-        connectToPrinter(targetMac, callback)
+        reconnectAttemptsLeft = maxReconnectAttempts
+        attemptReconnect(targetMac, callback)
         return true
     }
 
     /**
-     * Print a bitmap file
+     * Helper method to attempt reconnection with retry logic
+     */
+    private fun attemptReconnect(macAddress: String, callback: PrinterCallback? = null) {
+        connectToPrinter(macAddress, object : PrinterCallback {
+            override fun onSuccess() {
+                reconnectAttemptsLeft = 0
+                callback?.onSuccess()
+            }
+
+            override fun onError(errorMessage: String) {
+                if (reconnectAttemptsLeft > 0) {
+                    reconnectAttemptsLeft--
+                    // Exponential backoff for retries: 500ms, 1000ms, 2000ms
+                    val delayMs = 500L * (1 shl (maxReconnectAttempts - reconnectAttemptsLeft - 1))
+                    coroutineScope.launch {
+                        delay(delayMs)
+                        attemptReconnect(macAddress, callback)
+                    }
+                } else {
+                    callback?.onError("Failed to reconnect after multiple attempts: $errorMessage")
+                }
+            }
+        })
+    }
+
+    /**
+     * Print a bitmap file with improved error handling
      * @param filePath Path to the bitmap file
      * @param callback Callback to be invoked when printing completes
      */
@@ -336,9 +406,16 @@ class XPrinter private constructor(private val context: Context) {
                             }
                         }
 
-                        connectToPrinter(targetMac)
-                        // Wait briefly for connection to establish
-                        delay(500)
+                        // Try to reconnect asynchronously
+                        val connected = withTimeout(CONNECTION_TIMEOUT) {
+                            connectAsync(targetMac)
+                        }
+
+                        if (!connected) {
+                            updateState(PrinterState.ERROR, "Failed to reconnect printer")
+                            callback?.onError("Failed to reconnect printer")
+                            return@launch
+                        }
                     }
                 }
 
@@ -362,13 +439,19 @@ class XPrinter private constructor(private val context: Context) {
 
                 // Print the file
                 try {
-
                     val bitmap = BitmapFactory.decodeFile(filePath)
+                    if (bitmap == null) {
+                        updateState(PrinterState.ERROR, "Invalid bitmap file")
+                        callback?.onError("Invalid bitmap file")
+                        return@launch
+                    }
 
-                    printer?.apply {
-                        cls()
-                        bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, 600, bitmap, AlgorithmType.Threshold)
-                        print(1)
+                    withContext(Dispatchers.IO) {
+                        printer?.apply {
+                            cls()
+                            bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, 600, bitmap, AlgorithmType.Threshold)
+                            print(1)
+                        }
                     }
 
                     // Mark as success
@@ -395,6 +478,9 @@ class XPrinter private constructor(private val context: Context) {
      * Close printer connection
      */
     fun close() {
+        currentConnectionJob?.cancel()
+        currentConnectionJob = null
+
         try {
             deviceConnection?.close()
             deviceConnection = null
