@@ -1,4 +1,4 @@
-name: eq_xprinter
+name: xprinter
 description: A Flutter plugin for controlling XPrinter thermal printers on Android. This plugin allows communication with XPrinter devices over Bluetooth for printing images.
 version: 0.0.2
 homepage: https://github.com/eq-devs/xprinter

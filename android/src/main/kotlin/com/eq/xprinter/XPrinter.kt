@@ -45,6 +45,7 @@ class XPrinter private constructor(private val context: Context) {
                 Manifest.permission.BLUETOOTH_SCAN
             )
         } else {
+
             arrayOf(
                 Manifest.permission.BLUETOOTH,
                 Manifest.permission.BLUETOOTH_ADMIN,
@@ -79,6 +80,8 @@ class XPrinter private constructor(private val context: Context) {
      * Enum representing different printer states
      */
     enum class PrinterState {
+
+
         DISCONNECTED, CONNECTING, CONNECTED, PRINTING, ERROR
     }
 
@@ -100,6 +103,8 @@ class XPrinter private constructor(private val context: Context) {
      * Callback for printer operation results
      */
     interface PrinterCallback {
+
+
         fun onSuccess()
         fun onError(errorMessage: String)
     }
@@ -116,6 +121,8 @@ class XPrinter private constructor(private val context: Context) {
      * @return true if initialization was successful
      */
     fun initialize(): Boolean {
+
+        printer.cls()
         return try {
             POSConnect.init(context)
             true

@@ -17,7 +17,6 @@ class _MyAppState extends State<MyApp> {
   List<BluetoothPrinterDevice> _devices = [];
   String _status = 'Disconnected';
   bool _isConnected = false;
-  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -29,7 +28,6 @@ class _MyAppState extends State<MyApp> {
     try {
       final initialized = await _xprinterPlugin.initialize();
       setState(() {
-        _isInitialized = initialized;
         _status = initialized ? 'SDK initialized' : 'Failed to initialize SDK';
       });
     } catch (e) {
