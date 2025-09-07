@@ -54,6 +54,11 @@ class Xprinter {
     return XprinterPlatform.instance.printBitmap(filePath);
   }
 
+  /// Print an image from a base64 encoded string
+  Future<bool> printImage(String base64Encoded, {double width = 460}) {
+    return XprinterPlatform.instance.printImage(base64Encoded, width: width);
+  }
+
   /// Close printer connection
   Future<void> close() {
     return XprinterPlatform.instance.close();

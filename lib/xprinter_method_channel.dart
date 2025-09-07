@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'xprinter_platform_interface.dart';
 
-
-
 /// An implementation of [XprinterPlatform] that uses method channels.
 class MethodChannelXprinter extends XprinterPlatform {
   /// The method channel used to interact with the native platform.
@@ -104,6 +102,15 @@ class MethodChannelXprinter extends XprinterPlatform {
   Future<bool> printBitmap(String filePath) async {
     final bool result = await methodChannel.invokeMethod('printBitmap', {
       'filePath': filePath,
+    });
+    return result;
+  }
+
+  @override
+  Future<bool> printImage(String base64Encoded, {double width = 460}) async {
+    final bool result = await methodChannel.invokeMethod('printImage', {
+      'base64Encoded': base64Encoded,
+      'width': width,
     });
     return result;
   }

@@ -72,6 +72,11 @@ abstract class XprinterPlatform extends PlatformInterface {
     throw UnimplementedError('printBitmap() has not been implemented.');
   }
 
+  /// Print an image from a base64 encoded string
+  Future<bool> printImage(String base64Encoded, {double width = 460}) {
+    throw UnimplementedError('printImage() has not been implemented.');
+  }
+
   /// Close printer connection
   Future<void> close() {
     throw UnimplementedError('close() has not been implemented.');

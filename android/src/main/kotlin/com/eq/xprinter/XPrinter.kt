@@ -475,6 +475,116 @@ class XPrinter private constructor(private val context: Context) {
     }
 
     /**
+     * Print an image from a base64 encoded string
+     * @param base64Encoded Base64 encoded image data
+     * @param width Width of the printed image (default: 460)
+     * @param callback Callback to be invoked when printing completes
+     */
+    fun printImage(base64Encoded: String, width: Int = 460, callback: PrinterCallback? = null) {
+        // Check permissions first
+        if (!hasBluetoothPermissions()) {
+            updateState(PrinterState.ERROR, "Bluetooth permissions not granted")
+            callback?.onError("Bluetooth permissions not granted")
+            return
+        }
+
+        coroutineScope.launch {
+            try {
+                // Check printer connection
+                if (!isPrinterConnected()) {
+                    val targetMac = lastConnectedMacAddress
+                    if (targetMac != null) {
+                        // Double-check BLUETOOTH_CONNECT permission for Android 12+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            if (ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.BLUETOOTH_CONNECT
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                updateState(
+                                    PrinterState.ERROR, "BLUETOOTH_CONNECT permission not granted"
+                                )
+                                callback?.onError("BLUETOOTH_CONNECT permission not granted")
+                                return@launch
+                            }
+                        }
+
+                        // Try to reconnect asynchronously
+                        val connected = withTimeout(CONNECTION_TIMEOUT) {
+                            connectAsync(targetMac)
+                        }
+
+                        if (!connected) {
+                            updateState(PrinterState.ERROR, "Failed to reconnect printer")
+                            callback?.onError("Failed to reconnect printer")
+                            return@launch
+                        }
+                    }
+                }
+
+                // If still not connected after attempt, show error and return
+                if (!isPrinterConnected()) {
+                    updateState(PrinterState.ERROR, "Printer not connected")
+                    callback?.onError("Printer not connected")
+                    return@launch
+                }
+
+                // Decode base64 string to bitmap
+                val imageBytes = try {
+                    android.util.Base64.decode(base64Encoded, android.util.Base64.DEFAULT)
+                } catch (e: IllegalArgumentException) {
+                    updateState(PrinterState.ERROR, "Invalid base64 string")
+                    callback?.onError("Invalid base64 string: ${e.message}")
+                    return@launch
+                }
+
+                val bitmap = try {
+                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                } catch (e: Exception) {
+                    updateState(PrinterState.ERROR, "Failed to decode image")
+                    callback?.onError("Failed to decode image: ${e.message}")
+                    return@launch
+                }
+
+                if (bitmap == null) {
+                    updateState(PrinterState.ERROR, "Invalid image data")
+                    callback?.onError("Invalid image data")
+                    return@launch
+                }
+
+                // Update state for printing
+                updateState(PrinterState.PRINTING)
+
+                // Print the bitmap with specified width
+                try {
+                    withContext(Dispatchers.IO) {
+                        printer?.apply {
+                            cls()
+                            bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, width, bitmap, AlgorithmType.Threshold)
+                            print(1)
+                        }
+                    }
+
+                    // Mark as success
+                    updateState(PrinterState.CONNECTED)
+                    callback?.onSuccess()
+                } catch (e: SecurityException) {
+                    updateState(PrinterState.ERROR, "Permission error: ${e.message}")
+                    callback?.onError("Permission error: ${e.message}")
+                } catch (e: Exception) {
+                    updateState(PrinterState.ERROR, "Printing error: ${e.message}")
+                    callback?.onError("Printing error: ${e.message}")
+                }
+            } catch (e: SecurityException) {
+                updateState(PrinterState.ERROR, "Permission error: ${e.message}")
+                callback?.onError("Permission error: ${e.message}")
+            } catch (e: Exception) {
+                updateState(PrinterState.ERROR, "Printing error: ${e.message}")
+                callback?.onError("Printing error: ${e.message}")
+            }
+        }
+    }
+
+    /**
      * Close printer connection
      */
     fun close() {

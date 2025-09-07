@@ -110,6 +110,26 @@ class XPrinterFlutterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           }
         }) ?: result.error("PRINTER_NOT_INITIALIZED", "Printer not initialized", null)
       }
+      "printImage" -> {
+        val base64Encoded = call.argument<String>("base64Encoded")
+        val widthDouble = call.argument<Double>("width") ?: 460.0
+        val width = widthDouble.toInt()
+
+        if (base64Encoded == null) {
+          result.error("INVALID_ARGUMENT", "Base64 encoded string is required", null)
+          return
+        }
+
+        printer?.printImage(base64Encoded, width, object : XPrinter.PrinterCallback {
+          override fun onSuccess() {
+            result.success(true)
+          }
+
+          override fun onError(errorMessage: String) {
+            result.error("PRINT_ERROR", errorMessage, null)
+          }
+        }) ?: result.error("PRINTER_NOT_INITIALIZED", "Printer not initialized", null)
+      }
       "close" -> {
         printer?.close()
         result.success(null)
