@@ -1,9 +1,7 @@
 import 'dart:io';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:xprinter/xprinter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:xprinter/xprinter.dart';
 
 void main() {
   runApp(MyApp());
@@ -140,15 +138,15 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<String> _convertImageToBase64(XFile imageFile) async {
-    try {
-      final Uint8List imageBytes = await imageFile.readAsBytes();
-      final String base64String = base64Encode(imageBytes);
-      return base64String;
-    } catch (e) {
-      throw Exception('Failed to convert image to base64: $e');
-    }
-  }
+  // Future<String> _convertImageToBase64(XFile imageFile) async {
+  //   try {
+  //     final Uint8List imageBytes = await imageFile.readAsBytes();
+  //     final String base64String = base64Encode(imageBytes);
+  //     return base64String;
+  //   } catch (e) {
+  //     throw Exception('Failed to convert image to base64: $e');
+  //   }
+  // }
 
   Future<void> _printSelectedImage() async {
     if (!_isConnected) {
@@ -171,21 +169,23 @@ class _MyAppState extends State<MyApp> {
       });
 
       // Convert image to base64
-      final String base64Image = await _convertImageToBase64(_selectedImage!);
+      // final String base64Image = await _convertImageToBase64(_selectedImage!);
 
       setState(() {
         _status = 'Printing image...';
       });
 
-      // Print the base64 image
-      final success = await _xprinterPlugin.printImage(
-        base64Image,
-        width: _imageWidth,
-      );
+      // data['data']['labels'];
 
-      setState(() {
-        _status = success ? 'Print successful!' : 'Print failed';
-      });
+      // Print the base64 image
+      // final success = await _xprinterPlugin.printImage(
+      //   base64Image,
+      //   width: _imageWidth,
+      // );
+
+      // setState(() {
+      //   _status = success ? 'Print successful!' : 'Print failed';
+      // });
     } catch (e) {
       setState(() {
         _status = 'Error printing image: $e';
@@ -248,178 +248,47 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('XPrinter Image Example'),
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Status Card
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Status: $_status',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Connected: ${_isConnected ? "Yes" : "No"}',
-                        style: TextStyle(
-                          color: _isConnected ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Image Selection Section
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Image Selection',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_selectedImage != null) ...[
-                        Container(
-                          height: 200,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(_selectedImage!.path),
-                              fit: BoxFit.contain,
-                            ),
+      home: Builder(builder: (context) {
+        return Scaffold(
+          appBar: AppBar(
+              title: const Text('XPrinter Image Example'),
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Status Card
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Status: $_status',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Selected: ${_selectedImage!.name}',
-                          style: const TextStyle(fontSize: 12),
+                          'Connected: ${_isConnected ? "Yes" : "No"}',
+                          style: TextStyle(
+                            color: _isConnected ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                        const SizedBox(height: 12),
                       ],
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _pickImageFromGallery,
-                              icon: const Icon(Icons.photo_library),
-                              label: const Text('Gallery'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _pickImageFromCamera,
-                              icon: const Icon(Icons.camera_alt),
-                              label: const Text('Camera'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Print Settings
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Print Settings',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Image Width: ${_imageWidth.toInt()}px'),
-                      Slider(
-                        value: _imageWidth,
-                        min: 200,
-                        max: 600,
-                        divisions: 20,
-                        label: '${_imageWidth.toInt()}px',
-                        onChanged: (value) {
-                          setState(() {
-                            _imageWidth = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Printer Setup Section
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Printer Setup',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _requestPermissions,
-                        child: const Text('Request Permissions'),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _getBluetoothDevices,
-                        child: const Text('Get Bluetooth Devices'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Device List
-              if (_devices.isNotEmpty) ...[
+                // Image Selection Section
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -427,106 +296,239 @@ class _MyAppState extends State<MyApp> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Available Printers',
+                          'Image Selection',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          height: 200,
-                          child: ListView.builder(
-                            itemCount: _devices.length,
-                            itemBuilder: (context, index) {
-                              final device = _devices[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  leading: const Icon(Icons.print),
-                                  title: Text(device.name),
-                                  subtitle: Text(device.address),
-                                  trailing: ElevatedButton(
-                                    onPressed: () =>
-                                        _connectToPrinter(device.address),
-                                    child: const Text('Connect'),
+                        if (_selectedImage != null) ...[
+                          Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(_selectedImage!.path),
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Selected: ${_selectedImage!.name}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _pickImageFromGallery,
+                                icon: const Icon(Icons.photo_library),
+                                label: const Text('Gallery'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _pickImageFromCamera,
+                                icon: const Icon(Icons.camera_alt),
+                                label: const Text('Camera'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Print Settings
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Print Settings',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('Image Width: ${_imageWidth.toInt()}px'),
+                        Slider(
+                          value: _imageWidth,
+                          min: 200,
+                          max: 600,
+                          divisions: 20,
+                          label: '${_imageWidth.toInt()}px',
+                          onChanged: (value) {
+                            setState(() {
+                              _imageWidth = value;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Printer Setup Section
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Printer Setup',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _requestPermissions,
+                          child: const Text('Request Permissions'),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: _getBluetoothDevices,
+                          child: const Text('Get Bluetooth Devices'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Device List
+                if (_devices.isNotEmpty) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Available Printers',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 200,
+                            child: ListView.builder(
+                              itemCount: _devices.length,
+                              itemBuilder: (context, index) {
+                                final device = _devices[index];
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    leading: const Icon(Icons.print),
+                                    title: Text(device.name),
+                                    subtitle: Text(device.address),
+                                    trailing: ElevatedButton(
+                                      onPressed: () =>
+                                          _connectToPrinter(device.address),
+                                      child: const Text('Connect'),
+                                    ),
                                   ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Print Actions
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Print Actions',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    _isConnected ? _printSelectedImage : null,
+                                icon: const Icon(Icons.print),
+                                label: const Text('Print Selected'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
                                 ),
-                              );
-                            },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    _isConnected ? _printTestImage : null,
+                                icon: const Icon(Icons.bug_report),
+                                label: const Text('Test Print'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isConnected ? _disconnectPrinter : null,
+                            icon: const Icon(Icons.close),
+                            label: const Text('Disconnect'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
               ],
-
-              // Print Actions
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Print Actions',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed:
-                                  _isConnected ? _printSelectedImage : null,
-                              icon: const Icon(Icons.print),
-                              label: const Text('Print Selected'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isConnected ? _printTestImage : null,
-                              icon: const Icon(Icons.bug_report),
-                              label: const Text('Test Print'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isConnected ? _disconnectPrinter : null,
-                          icon: const Icon(Icons.close),
-                          label: const Text('Disconnect'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }

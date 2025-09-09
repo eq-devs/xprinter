@@ -1,3 +1,5 @@
+import 'package:xprinter/model/config.dart';
+
 import 'xprinter_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -20,6 +22,10 @@ abstract class XprinterPlatform extends PlatformInterface {
   static set instance(XprinterPlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
+  }
+
+  Future<bool> configurePrinter(PrinterConfig config) {
+    throw UnimplementedError('configurePrinter() has not been implemented.');
   }
 
   Future<String?> getPlatformVersion() {

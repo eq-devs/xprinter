@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:xprinter/model/config.dart';
 import 'xprinter_platform_interface.dart';
 
 export 'xprinter_platform_interface.dart'
     show BluetoothPrinterDevice, PrinterState;
+export 'ui/page.dart';
+export './model/config.dart';
 
 @immutable
 class Xprinter {
@@ -55,7 +58,7 @@ class Xprinter {
   }
 
   /// Print an image from a base64 encoded string
-  Future<bool> printImage(String base64Encoded, {double width = 460}) {
+  Future<bool> printImage(String base64Encoded, {double width = 600}) {
     return XprinterPlatform.instance.printImage(base64Encoded, width: width);
   }
 
@@ -67,6 +70,11 @@ class Xprinter {
   /// Exit SDK and release resources
   Future<void> exitSdk() {
     return XprinterPlatform.instance.exitSdk();
+  }
+
+  ///only for android
+  Future<bool> configurePrinter(PrinterConfig config) {
+    return XprinterPlatform.instance.configurePrinter(config);
   }
 }
 

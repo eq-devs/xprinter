@@ -480,7 +480,8 @@ class XPrinter private constructor(private val context: Context) {
      * @param width Width of the printed image (default: 460)
      * @param callback Callback to be invoked when printing completes
      */
-    fun printImage(base64Encoded: String, width: Int = 460, callback: PrinterCallback? = null) {
+
+    fun printImage(base64Encoded: String, width: Int = 460, x: Int = 0, y: Int = 0, callback: PrinterCallback? = null) {
         // Check permissions first
         if (!hasBluetoothPermissions()) {
             updateState(PrinterState.ERROR, "Bluetooth permissions not granted")
@@ -490,25 +491,21 @@ class XPrinter private constructor(private val context: Context) {
 
         coroutineScope.launch {
             try {
-                // Check printer connection
+                // Check printer connection (your existing code)
                 if (!isPrinterConnected()) {
                     val targetMac = lastConnectedMacAddress
                     if (targetMac != null) {
-                        // Double-check BLUETOOTH_CONNECT permission for Android 12+
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             if (ContextCompat.checkSelfPermission(
                                     context, Manifest.permission.BLUETOOTH_CONNECT
                                 ) != PackageManager.PERMISSION_GRANTED
                             ) {
-                                updateState(
-                                    PrinterState.ERROR, "BLUETOOTH_CONNECT permission not granted"
-                                )
+                                updateState(PrinterState.ERROR, "BLUETOOTH_CONNECT permission not granted")
                                 callback?.onError("BLUETOOTH_CONNECT permission not granted")
                                 return@launch
                             }
                         }
 
-                        // Try to reconnect asynchronously
                         val connected = withTimeout(CONNECTION_TIMEOUT) {
                             connectAsync(targetMac)
                         }
@@ -521,7 +518,6 @@ class XPrinter private constructor(private val context: Context) {
                     }
                 }
 
-                // If still not connected after attempt, show error and return
                 if (!isPrinterConnected()) {
                     updateState(PrinterState.ERROR, "Printer not connected")
                     callback?.onError("Printer not connected")
@@ -551,20 +547,40 @@ class XPrinter private constructor(private val context: Context) {
                     return@launch
                 }
 
-                // Update state for printing
                 updateState(PrinterState.PRINTING)
 
-                // Print the bitmap with specified width
                 try {
                     withContext(Dispatchers.IO) {
                         printer?.apply {
                             cls()
-                            bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, width, bitmap, AlgorithmType.Threshold)
+
+                            // Calculate positions if centering is requested
+                            val finalX: Int
+                            val finalY: Int
+
+                            if (x == -1 || y == -1) {
+                                // Calculate center position
+                                // Assuming 3x5 inch paper at 203 DPI
+                                val dpi = 203
+                                val paperWidthDots = (3.0 * dpi).toInt()  // 3 inches
+                                val paperHeightDots = (5.0 * dpi).toInt() // 5 inches
+
+                                // Get actual bitmap dimensions after scaling
+                                val scaledBitmapWidth = width
+                                val scaledBitmapHeight = (bitmap.height * width) / bitmap.width
+
+                                finalX = if (x == -1) (paperWidthDots - scaledBitmapWidth) / 2 else x
+                                finalY = if (y == -1) (paperHeightDots - scaledBitmapHeight) / 2 else y
+                            } else {
+                                finalX = x
+                                finalY = y
+                            }
+
+                            bitmap(finalX, finalY, TSPLConst.BMP_MODE_OVERWRITE, width, bitmap, AlgorithmType.Threshold)
                             print(1)
                         }
                     }
 
-                    // Mark as success
                     updateState(PrinterState.CONNECTED)
                     callback?.onSuccess()
                 } catch (e: SecurityException) {
@@ -583,7 +599,6 @@ class XPrinter private constructor(private val context: Context) {
             }
         }
     }
-
     /**
      * Close printer connection
      */
@@ -620,6 +635,35 @@ class XPrinter private constructor(private val context: Context) {
         printerState = state
         Handler(Looper.getMainLooper()).post {
             connectionListener?.onStateChanged(state, message)
+        }
+    }
+
+    data class PrinterConfig(
+        val density: Int = 8,
+        val speed: Double = 4.0,
+        val paperWidth: Double = 2.0,
+        val paperHeight: Double = 1.0
+    )
+
+    fun configurePrinter(config: PrinterConfig, callback: PrinterCallback? = null) {
+        coroutineScope.launch {
+            try {
+                if (!isPrinterConnected()) {
+                    callback?.onError("Printer not connected")
+                    return@launch
+                }
+
+                printer?.apply {
+                    cls()
+                    sizeInch(config.paperWidth, config.paperHeight)
+                    speed(config.speed)
+                    density(config.density)
+                }
+
+                callback?.onSuccess()
+            } catch (e: Exception) {
+                callback?.onError("Configuration failed: ${e.message}")
+            }
         }
     }
 }

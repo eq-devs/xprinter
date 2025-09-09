@@ -1,10 +1,17 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:xprinter/model/config.dart';
 import 'xprinter_platform_interface.dart';
 
-/// An implementation of [XprinterPlatform] that uses method channels.
 class MethodChannelXprinter extends XprinterPlatform {
+  @override
+  Future<bool> configurePrinter(PrinterConfig config) async {
+    final bool result =
+        await methodChannel.invokeMethod('configurePrinter', config.toMap());
+    return result;
+  }
+
   /// The method channel used to interact with the native platform.
   @visibleForTesting
   final methodChannel = const MethodChannel('com.eq.xprinter');

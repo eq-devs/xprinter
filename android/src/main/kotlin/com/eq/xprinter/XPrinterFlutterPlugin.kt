@@ -110,23 +110,63 @@ class XPrinterFlutterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           }
         }) ?: result.error("PRINTER_NOT_INITIALIZED", "Printer not initialized", null)
       }
+      // In XPrinterFlutterPlugin.kt - update the "printImage" case
       "printImage" -> {
         val base64Encoded = call.argument<String>("base64Encoded")
-        val widthDouble = call.argument<Double>("width") ?: 460.0
-        val width = widthDouble.toInt()
+        val width = (call.argument<Double>("width") ?: 460.0).toInt()
+        val x = (call.argument<Double>("x") ?: 0.0).toInt()
+        val y = (call.argument<Double>("y") ?: 0.0).toInt()
 
         if (base64Encoded == null) {
           result.error("INVALID_ARGUMENT", "Base64 encoded string is required", null)
           return
         }
 
-        printer?.printImage(base64Encoded, width, object : XPrinter.PrinterCallback {
+        printer?.printImage(base64Encoded, width, x, y, object : XPrinter.PrinterCallback {
           override fun onSuccess() {
             result.success(true)
           }
 
           override fun onError(errorMessage: String) {
             result.error("PRINT_ERROR", errorMessage, null)
+          }
+        }) ?: result.error("PRINTER_NOT_INITIALIZED", "Printer not initialized", null)
+      }
+//      "printImage" -> {
+//        val base64Encoded = call.argument<String>("base64Encoded")
+//        val widthDouble = call.argument<Double>("width") ?: 460.0
+//        val width = widthDouble.toInt()
+//
+//        if (base64Encoded == null) {
+//          result.error("INVALID_ARGUMENT", "Base64 encoded string is required", null)
+//          return
+//        }
+//
+//        printer?.printImage(base64Encoded, width, object : XPrinter.PrinterCallback {
+//          override fun onSuccess() {
+//            result.success(true)
+//          }
+//
+//          override fun onError(errorMessage: String) {
+//            result.error("PRINT_ERROR", errorMessage, null)
+//          }
+//        }) ?: result.error("PRINTER_NOT_INITIALIZED", "Printer not initialized", null)
+//      }
+      "configurePrinter" -> {
+        val density = call.argument<Int>("density") ?: 8
+        val speed = call.argument<Double>("speed") ?: 4.0
+        val paperWidth = call.argument<Double>("paperWidth") ?: 2.0
+        val paperHeight = call.argument<Double>("paperHeight") ?: 1.0
+
+        val config = XPrinter.PrinterConfig(density, speed, paperWidth, paperHeight)
+
+        printer?.configurePrinter(config, object : XPrinter.PrinterCallback {
+          override fun onSuccess() {
+            result.success(true)
+          }
+
+          override fun onError(errorMessage: String) {
+            result.error("CONFIG_ERROR", errorMessage, null)
           }
         }) ?: result.error("PRINTER_NOT_INITIALIZED", "Printer not initialized", null)
       }
