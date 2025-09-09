@@ -22,3 +22,7 @@
 - Added input fields for paper width and height.
 - Included save functionality with loading indicator and success message.
 - Implemented reset to default settings feature.
+
+
+## 0.0.4
+* Rename package to xprinter_android for clarity
