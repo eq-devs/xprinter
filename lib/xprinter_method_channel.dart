@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:xprinter/model/config.dart';
+import 'package:xprinter_android/model/config.dart';
 import 'xprinter_platform_interface.dart';
 
 class MethodChannelXprinter extends XprinterPlatform {

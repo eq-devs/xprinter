@@ -1,4 +1,5 @@
-import 'package:xprinter/model/config.dart';
+
+import 'package:xprinter_android/model/config.dart';
 
 import 'xprinter_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
